@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Agar.io Ultimate Edition</title>
+    <title>Agar.io Elite Edition</title>
     <style>
         body {
             margin: 0;
-            background: #111;
+            background: #0d0d0d;
             color: #fff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden;
@@ -14,53 +14,70 @@
         }
         canvas {
             display: block;
-            background: #181818;
+            background: #141414;
         }
         #hud {
             position: absolute;
             top: 20px;
             left: 20px;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(15, 15, 15, 0.75);
             padding: 12px 20px;
-            border-radius: 10px;
+            border-radius: 12px;
             pointer-events: none;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
         }
         #leaderboard {
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 180px;
-            background: rgba(0, 0, 0, 0.6);
+            width: 200px;
+            background: rgba(15, 15, 15, 0.75);
             padding: 15px;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 14px;
             pointer-events: none;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
         }
         #leaderboard h3 {
             margin: 0 0 10px 0;
             font-size: 16px;
             text-align: center;
             color: #ff5722;
+            letter-spacing: 1px;
         }
         .lb-item {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(15, 15, 15, 0.75);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #aaa;
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <div id="hud">Mass: <span id="mass">10</span></div>
+    <div id="hud">Mass: <span id="mass">20</span></div>
     <div id="leaderboard">
-        <h3>Leaderboard</h3>
+        <h3>TOP CELLS</h3>
         <div id="lb-list"></div>
     </div>
+    <div id="instructions">Controls: <b>Mouse</b> to move | <b>Space</b> to Split | <b>W</b> to Eject Mass</div>
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -75,14 +92,14 @@
             canvas.height = window.innerHeight;
         });
 
-        const MAP_SIZE = 3000;
+        const MAP_SIZE = 3500;
 
         let player = {
             x: MAP_SIZE / 2,
             y: MAP_SIZE / 2,
-            radius: 20,
+            radius: 22,
             color: '#ff5722',
-            speed: 4,
+            speed: 2.2, // Slower, heavier movement
             name: "You"
         };
 
@@ -94,54 +111,68 @@
             mouse.y = e.clientY;
         });
 
+        let ejectedMass = [];
+
         // Controls: Space to Split, W to Eject Mass
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && player.radius > 30) {
-                player.radius -= 10; // Simple split simulation boost
-                player.speed += 3;
-                setTimeout(() => player.speed -= 3, 300);
+            if (e.code === 'Space' && player.radius > 35) {
+                player.radius -= 12; // Split penalty simulation
+            }
+            if (e.code === 'KeyW' && player.radius > 25) {
+                player.radius -= 3; // Eject mass
+                let dx = mouse.x - canvas.width / 2;
+                let dy = mouse.y - canvas.height / 2;
+                let dist = Math.hypot(dx, dy) || 1;
+                ejectedMass.push({
+                    x: player.x + (dx / dist) * (player.radius + 15),
+                    y: player.y + (dy / dist) * (player.radius + 15),
+                    vx: (dx / dist) * 7,
+                    vy: (dy / dist) * 7,
+                    radius: 6,
+                    color: player.color
+                });
             }
         });
 
-        // Generate colorful foods
+        // Generate glowing food pellets
         let foods = [];
-        for (let i = 0; i < 500; i++) {
+        for (let i = 0; i < 600; i++) {
             foods.push({
                 x: Math.random() * MAP_SIZE,
                 y: Math.random() * MAP_SIZE,
-                radius: 5,
-                color: `hsl(${Math.random() * 360}, 90%, 60%)`
+                radius: 4.5,
+                color: `hsl(${Math.random() * 360}, 90%, 65%)`
             });
         }
 
         // Generate Viruses (Spike hazards)
         let viruses = [];
-        for (let i = 0; i < 15; i++) {
+        for (let i = 0; i < 18; i++) {
             viruses.push({
-                x: Math.random() * (MAP_SIZE - 200) + 100,
-                y: Math.random() * (MAP_SIZE - 200) + 100,
-                radius: 45,
-                color: '#33cc33'
+                x: Math.random() * (MAP_SIZE - 300) + 150,
+                y: Math.random() * (MAP_SIZE - 300) + 150,
+                radius: 50,
+                color: '#2ecc71'
             });
         }
 
         // Generate AI Bot Cells
         let bots = [];
-        const botNames = ["Alpha", "Blobber", "Venom", "Titan", "Cosmo", "Goliath", "Zeus", "Vortex", "Shadow", "Apex"];
-        for (let i = 0; i < 35; i++) {
+        const botNames = ["Alpha", "Blobber", "Venom", "Titan", "Cosmo", "Goliath", "Zeus", "Vortex", "Shadow", "Apex", "Juggernaut", "Pulse"];
+        for (let i = 0; i < 40; i++) {
             bots.push({
                 x: Math.random() * MAP_SIZE,
                 y: Math.random() * MAP_SIZE,
-                radius: Math.random() * 25 + 15,
+                radius: Math.random() * 30 + 15,
                 color: `hsl(${Math.random() * 360}, 75%, 50%)`,
-                vx: (Math.random() - 0.5) * 2.5,
-                vy: (Math.random() - 0.5) * 2.5,
+                vx: (Math.random() - 0.5) * 1.8,
+                vy: (Math.random() - 0.5) * 1.8,
                 name: botNames[i % botNames.length]
             });
         }
 
         function update() {
-            // Smooth mouse vector movement
+            // Smooth directional movement towards mouse
             let dx = mouse.x - canvas.width / 2;
             let dy = mouse.y - canvas.height / 2;
             let dist = Math.hypot(dx, dy);
@@ -151,35 +182,50 @@
                 player.y += (dy / dist) * player.speed;
             }
 
-            // Map boundaries
+            // Constrain player to map bounds
             player.x = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.x));
             player.y = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.y));
 
-            // Dynamic speed scaling based on mass
-            player.speed = Math.max(1.8, 4.5 - (player.radius / 40));
+            // Slower, heavy scaling speed based on mass
+            player.speed = Math.max(1.1, 3.2 - (player.radius / 50));
 
-            // Camera smooth tracking & zoom adjustment
-            let targetZoom = Math.max(0.4, 120 / player.radius);
-            camera.zoom += (targetZoom - camera.zoom) * 0.05;
+            // Smooth camera zoom based on player size
+            let targetZoom = Math.max(0.35, 140 / player.radius);
+            camera.zoom += (targetZoom - camera.zoom) * 0.06;
             camera.x += (player.x - camera.x) * 0.1;
             camera.y += (player.y - camera.y) * 0.1;
 
-            // Food collision check
+            // Update ejected mass particles
+            for (let i = ejectedMass.length - 1; i >= 0; i--) {
+                let em = ejectedMass[i];
+                em.x += em.vx;
+                em.y += em.vy;
+                em.vx *= 0.92;
+                em.vy *= 0.92;
+
+                // Player eating own ejected mass back
+                if (Math.hypot(player.x - em.x, player.y - em.y) < player.radius) {
+                    player.radius += 0.4;
+                    ejectedMass.splice(i, 1);
+                }
+            }
+
+            // Food collision checks
             for (let i = foods.length - 1; i >= 0; i--) {
                 let f = foods[i];
                 if (Math.hypot(player.x - f.x, player.y - f.y) < player.radius) {
-                    player.radius += 0.08;
+                    player.radius += 0.05;
                     foods.splice(i, 1);
                     foods.push({
                         x: Math.random() * MAP_SIZE,
                         y: Math.random() * MAP_SIZE,
-                        radius: 5,
-                        color: `hsl(${Math.random() * 360}, 90%, 60%)`
+                        radius: 4.5,
+                        color: `hsl(${Math.random() * 360}, 90%, 65%)`
                     });
                 }
             }
 
-            // Bot logic & collisions
+            // Bot movement and collision logic
             bots.forEach(bot => {
                 bot.x += bot.vx;
                 bot.y += bot.vy;
@@ -187,53 +233,54 @@
                 if (bot.x < 0 || bot.x > MAP_SIZE) bot.vx *= -1;
                 if (bot.y < 0 || bot.y > MAP_SIZE) bot.vy *= -1;
 
-                // Random wandering direction adjustments
-                if (Math.random() < 0.02) {
-                    bot.vx = (Math.random() - 0.5) * 3;
-                    bot.vy = (Math.random() - 0.5) * 3;
+                if (Math.random() < 0.015) {
+                    bot.vx = (Math.random() - 0.5) * 2;
+                    bot.vy = (Math.random() - 0.5) * 2;
                 }
 
-                // Player vs Bot collision
+                // Player vs Bot
                 let d = Math.hypot(player.x - bot.x, player.y - bot.y);
                 if (d < player.radius + bot.radius) {
                     if (player.radius > bot.radius * 1.1) {
-                        player.radius += bot.radius * 0.15;
+                        player.radius += bot.radius * 0.12;
                         bot.x = Math.random() * MAP_SIZE;
                         bot.y = Math.random() * MAP_SIZE;
-                        bot.radius = Math.random() * 25 + 15;
+                        bot.radius = Math.random() * 30 + 15;
                     } else if (bot.radius > player.radius * 1.1) {
-                        alert("Devoured! Game Over.");
-                        player.radius = 20;
+                        alert("You were absorbed! Restarting game.");
+                        player.radius = 22;
                         player.x = MAP_SIZE / 2;
                         player.y = MAP_SIZE / 2;
                     }
                 }
             });
 
-            // Virus obstacle check
+            // Virus spike hazard checks
             viruses.forEach(v => {
                 if (Math.hypot(player.x - v.x, player.y - v.y) < player.radius + v.radius) {
                     if (player.radius > v.radius) {
-                        player.radius = Math.max(20, player.radius - 15); // Shatter penalty
-                        v.x = Math.random() * (MAP_SIZE - 200) + 100;
-                        v.y = Math.random() * (MAP_SIZE - 200) + 100;
+                        player.radius = Math.max(22, player.radius - 18);
+                        v.x = Math.random() * (MAP_SIZE - 300) + 150;
+                        v.y = Math.random() * (MAP_SIZE - 300) + 150;
                     }
                 }
             });
 
-            // Update UI Mass and Leaderboard
-            document.getElementById('mass').innerText = Math.floor(player.radius * player.radius * 0.1);
-            updateLeaderboard();
+            // Update Score & Leaderboard UI
+            let currentMass = Math.floor(player.radius * player.radius * 0.1);
+            document.getElementById('mass').innerText = currentMass;
+            updateLeaderboard(currentMass);
         }
 
-        function updateLeaderboard() {
-            let allEntities = [{ name: "You", mass: Math.floor(player.radius * player.radius * 0.1) }];
+        function updateLeaderboard(playerMass) {
+            let allEntities = [{ name: "You", mass: playerMass }];
             bots.forEach(b => allEntities.push({ name: b.name, mass: Math.floor(b.radius * b.radius * 0.1) }));
             allEntities.sort((a, b) => b.mass - a.mass);
 
             let html = "";
             for (let i = 0; i < Math.min(5, allEntities.length); i++) {
-                html += `<div class="lb-item"><span>${i+1}. ${allEntities[i].name}</span><span>${allEntities[i].mass}</span></div>`;
+                let colorStyle = allEntities[i].name === "You" ? "color: #ff5722; font-weight: bold;" : "";
+                html += `<div class="lb-item"><span style="${colorStyle}">${i+1}. ${allEntities[i].name}</span><span>${allEntities[i].mass}</span></div>`;
             }
             document.getElementById('lb-list').innerHTML = html;
         }
@@ -246,13 +293,13 @@
             ctx.scale(camera.zoom, camera.zoom);
             ctx.translate(-camera.x, -camera.y);
 
-            // Background Grid Lines
-            ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1;
-            for (let x = 0; x < MAP_SIZE; x += 80) {
+            // Clean background grid styling
+            ctx.strokeStyle = '#1b1b1b';
+            ctx.lineWidth = 1.5;
+            for (let x = 0; x < MAP_SIZE; x += 90) {
                 ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_SIZE); ctx.stroke();
             }
-            for (let y = 0; y < MAP_SIZE; y += 80) {
+            for (let y = 0; y < MAP_SIZE; y += 90) {
                 ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_SIZE, y); ctx.stroke();
             }
 
@@ -261,18 +308,30 @@
                 ctx.beginPath();
                 ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
                 ctx.fillStyle = f.color;
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = f.color;
+                ctx.fill();
+                ctx.shadowBlur = 0; // Reset shadow
+                ctx.closePath();
+            });
+
+            // Draw Ejected Mass Pellets
+            ejectedMass.forEach(em => {
+                ctx.beginPath();
+                ctx.arc(em.x, em.y, em.radius, 0, Math.PI * 2);
+                ctx.fillStyle = em.color;
                 ctx.fill();
                 ctx.closePath();
             });
 
-            // Draw Viruses (Starburst Spikes)
+            // Draw Viruses (Green Spike hazards)
             viruses.forEach(v => {
                 ctx.beginPath();
                 ctx.arc(v.x, v.y, v.radius, 0, Math.PI * 2);
                 ctx.fillStyle = v.color;
+                ctx.lineWidth = 5;
+                ctx.strokeStyle = '#27ae60';
                 ctx.fill();
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = '#228b22';
                 ctx.stroke();
                 ctx.closePath();
             });
@@ -282,14 +341,17 @@
                 ctx.beginPath();
                 ctx.arc(bot.x, bot.y, bot.radius, 0, Math.PI * 2);
                 ctx.fillStyle = bot.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
                 ctx.fill();
                 ctx.lineWidth = 4;
-                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                ctx.strokeStyle = 'rgba(0,0,0,0.4)';
                 ctx.stroke();
+                ctx.shadowBlur = 0;
                 ctx.closePath();
 
                 ctx.fillStyle = '#fff';
-                ctx.font = `${Math.max(12, bot.radius * 0.4)}px sans-serif`;
+                ctx.font = `${Math.max(12, bot.radius * 0.38)}px 'Segoe UI', sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.fillText(bot.name, bot.x, bot.y + 4);
             });
@@ -298,14 +360,17 @@
             ctx.beginPath();
             ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
             ctx.fillStyle = player.color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(255, 87, 34, 0.6)';
             ctx.fill();
             ctx.lineWidth = 5;
-            ctx.strokeStyle = '#fff';
+            ctx.strokeStyle = '#ffffff';
             ctx.stroke();
+            ctx.shadowBlur = 0;
             ctx.closePath();
 
             ctx.fillStyle = '#fff';
-            ctx.font = `${Math.max(14, player.radius * 0.4)}px sans-serif`;
+            ctx.font = `${Math.max(14, player.radius * 0.38)}px 'Segoe UI', sans-serif`;
             ctx.textAlign = 'center';
             ctx.fillText(player.name, player.x, player.y + 4);
 
