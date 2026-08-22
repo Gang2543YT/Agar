@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Agar.io with Learning AI</title>
+    <style>
+        body {
+            margin: 0;
+            background: #fbfbfb;
+            color: #333;
+            font-family: 'Ubuntu', 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        canvas { display: block; }
+        #hud {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            pointer-events: none;
+            display: none;
+        }
+        #leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            pointer-events: none;
+            display: none;
+        }
+        #leaderboard h4 { margin: 0 0 8px 0; text-align: center; }
+        .lb-item { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #202020 0%, #0a0a0a 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .panel {
+            background: rgba(30, 30, 30, 0.9);
+            padding: 35px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            width: 320px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            color: #fff;
+        }
+        .panel h1 { margin-top: 0; font-size: 32px; }
+        input {
+            width: 100%; padding: 12px; margin-bottom: 15px;
+            background: #111; border: 2px solid #444; color: #fff;
+            border-radius: 6px; font-size: 16px; text-align: center; box-sizing: border-box;
+        }
+        input:focus { outline: none; border-color: #3498db; }
+        .btn {
+            width: 100%; padding: 12px; background: #2ecc71; color: white;
+            border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer;
+        }
+        .btn:hover { background: #27ae60; }
+        #deathScreen { display: none; }
+    </style>
+</head>
+<body>
+    <!-- Main Menu -->
+    <div id="menu" class="overlay">
+        <div class="panel">
+            <h1>agar.io</h1>
+            <input type="text" id="nickInput" placeholder="Cell Nickname" maxlength="15" value="Player">
+            <button class="btn" id="playButton">Play</button>
+        </div>
+    </div>
+
+    <!-- Death Screen -->
+    <div id="deathScreen" class="overlay">
+        <div class="panel">
+            <h1>You Died!</h1>
+            <p>A learning bot outsmarted and consumed you.</p>
+            <button class="btn" id="respawnButton">Play Again</button>
+        </div>
+    </div>
+
+    <div id="hud">Score: <span id="score">20</span></div>
+    <div id="leaderboard">
+        <h4>Leaderboard</h4>
+        <div id="lb-list"></div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        const MAP_SIZE = 4000;
+        let gameStarted = false;
+
+        let player = {
+            x: MAP_SIZE / 2,
+            y: MAP_SIZE / 2,
+            radius: 22,
+            color: '#3498db',
+            name: 'Player'
+        };
+
+        let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+        let camera = { x: MAP_SIZE / 2, y: MAP_SIZE / 2, zoom: 0.5 };
+
+        document.getElementById('playButton').addEventListener('click', () => {
+            let val = document.getElementById('nickInput').value.trim();
+            if (val) player.name = val;
+            resetPlayer();
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('leaderboard').style.display = 'block';
+            gameStarted = true;
+        });
+
+        document.getElementById('respawnButton').addEventListener('click', () => {
+            document.getElementById('deathScreen').style.display = 'none';
+            resetPlayer();
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('leaderboard').style.display = 'block';
+            gameStarted = true;
+        });
+
+        function resetPlayer() {
+            player.x = Math.random() * (MAP_SIZE - 400) + 200;
+            player.y = Math.random() * (MAP_SIZE - 400) + 200;
+            player.radius = 22;
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        // Generate Map Elements
+        let foods = [];
+        for (let i = 0; i < 600; i++) {
+            foods.push({
+                x: Math.random() * MAP_SIZE,
+                y: Math.random() * MAP_SIZE,
+                color: `hsl(${Math.random() * 360}, 85%, 55%)`
+            });
+        }
+
+        // Learning AI Bots Setup
+        let bots = [];
+        const botNames = ["AlphaBot", "DeepBlob", "NeuralGoo", "Q-Eater", "Synapse", "Cognito", "ApexCell"];
+        
+        for (let i = 0; i < 25; i++) {
+            bots.push({
+                x: Math.random() * MAP_SIZE,
+                y: Math.random() * MAP_SIZE,
+                radius: Math.random() * 25 + 15,
+                color: `hsl(${Math.random() * 360}, 75%, 50%)`,
+                name: botNames[i % botNames.length],
+                vx: 0,
+                vy: 0,
+                // Reinforcement Learning Weights (The AI's brain values)
+                weights: {
+                    foodPreference: Math.random() * 2 - 1,   // How much it values eating small food
+                    hunterInstinct: Math.random() * 2 - 1,   // How aggressively it chases smaller cells
+                    survivalInstinct: Math.random() * 2 + 1  // How strongly it flees bigger threats
+                },
+                lastRadius: 22
+            });
+        }
+
+        function update() {
+            if (!gameStarted) return;
+
+            // Move Player
+            let dx = mouse.x - canvas.width / 2;
+            let dy = mouse.y - canvas.height / 2;
+            let dist = Math.hypot(dx, dy) || 1;
+            let speed = Math.max(1.0, 3.2 - (player.radius / 45));
+
+            player.x += (dx / dist) * speed;
+            player.y += (dy / dist) * speed;
+            player.x = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.y));
+
+            // Player Food Consumption
+            for (let i = foods.length - 1; i >= 0; i--) {
+                let f = foods[i];
+                if (Math.hypot(player.x - f.x, player.y - f.y) < player.radius) {
+                    player.radius += 0.04;
+                    foods.splice(i, 1);
+                    foods.push({ x: Math.random() * MAP_SIZE, y: Math.random() * MAP_SIZE, color: `hsl(${Math.random() * 360}, 85%, 55%)` });
+                }
+            }
+
+            // Update & Learn AI Bots
+            bots.forEach(bot => {
+                // Reward Check: Did the bot grow since last cycle?
+                let reward = bot.radius - bot.lastRadius;
+                bot.lastRadius = bot.radius;
+
+                // Reinforcement Learning Adjustment (If growing, reinforce current behavioral weights slightly)
+                if (reward > 0) {
+                    bot.weights.foodPreference += 0.01;
+                    bot.weights.survivalInstinct += 0.005;
+                } else {
+                    // If shrinking or stagnant, mutate weights to try a different strategy
+                    bot.weights.foodPreference += (Math.random() - 0.5) * 0.05;
+                    bot.weights.hunterInstinct += (Math.random() - 0.5) * 0.05;
+                }
+
+                // AI Decision Making (Scanning local surroundings)
+                let targetMoveX = 0, targetMoveY = 0;
+                let nearestThreatDist = 9999, threatX = 0, threatY = 0;
+                let nearestFoodDist = 9999, foodX = 0, foodY = 0;
+                let nearestTargetDist = 9999, targetX = 0, targetY = 0;
+
+                // Scan nearby food
+                foods.forEach(f => {
+                    let d = Math.hypot(bot.x - f.x, bot.y - f.y);
+                    if (d < nearestFoodDist && d < 400) {
+                        nearestFoodDist = d;
+                        foodX = f.x; foodY = f.y;
+                    }
+                });
+
+                // Scan threats or prey (other bots and player)
+                let allEntities = [...bots, player];
+                allEntities.forEach(ent => {
+                    if (ent === bot) return;
+                    let d = Math.hypot(bot.x - ent.x, bot.y - ent.y);
+                    if (d < 500) {
+                        if (ent.radius > bot.radius * 1.1 && d < nearestThreatDist) {
+                            // Bigger entity = Threat! Run away!
+                            nearestThreatDist = d;
+                            threatX = ent.x; threatY = ent.y;
+                        } else if (bot.radius > ent.radius * 1.1 && d < nearestTargetDist) {
+                            // Smaller entity = Prey! Hunt!
+                            nearestTargetDist = d;
+                            targetX = ent.x; targetY = ent.y;
+                        }
+                    }
+                });
+
+                // Apply Learned Weights to Navigation Vector
+                if (nearestThreatDist < 300 * bot.weights.survivalInstinct) {
+                    // Flee from threat
+                    targetMoveX = bot.x - threatX;
+                    targetMoveY = bot.y - threatY;
+                } else if (nearestTargetDist < nearestFoodDist * 1.5 && bot.weights.hunterInstinct > 0) {
+                    // Chase weaker prey
+                    targetMoveX = targetX - bot.x;
+                    targetMoveY = targetY - bot.y;
+                } else if (nearestFoodDist < 400) {
+                    // Collect food pellet using food preference weight
+                    targetMoveX = (foodX - bot.x) * bot.weights.foodPreference;
+                    targetMoveY = (foodY - bot.y) * bot.weights.foodPreference;
+                } else {
+                    // Random exploration drift
+                    targetMoveX = (Math.random() - 0.5) * 200;
+                    targetMoveY = (Math.random() - 0.5) * 200;
+                }
+
+                let moveDist = Math.hypot(targetMoveX, targetMoveY) || 1;
+                let botSpeed = Math.max(1.0, 3.2 - (bot.radius / 45));
+                bot.x += (targetMoveX / moveDist) * botSpeed;
+                bot.y += (targetMoveY / moveDist) * botSpeed;
+
+                // Boundary clamping
+                bot.x = Math.max(bot.radius, Math.min(MAP_SIZE - bot.radius, bot.x));
+                bot.y = Math.max(bot.radius, Math.min(MAP_SIZE - bot.radius, bot.y));
+
+                // Bot vs Food
+                for (let i = foods.length - 1; i >= 0; i--) {
+                    let f = foods[i];
+                    if (Math.hypot(bot.x - f.x, bot.y - f.y) < bot.radius) {
+                        bot.radius += 0.03;
+                        foods.splice(i, 1);
+                        foods.push({ x: Math.random() * MAP_SIZE, y: Math.random() * MAP_SIZE, color: `hsl(${Math.random() * 360}, 85%, 55%)` });
+                    }
+                }
+
+                // Bot vs Player Collisions
+                let pDist = Math.hypot(bot.x - player.x, bot.y - player.y);
+                if (pDist < bot.radius + player.radius) {
+                    if (bot.radius > player.radius * 1.1) {
+                        bot.radius += player.radius * 0.15;
+                        gameStarted = false;
+                        document.getElementById('hud').style.display = 'none';
+                        document.getElementById('leaderboard').style.display = 'none';
+                        document.getElementById('deathScreen').style.display = 'flex';
+                    } else if (player.radius > bot.radius * 1.1) {
+                        player.radius += bot.radius * 0.15;
+                        bot.x = Math.random() * MAP_SIZE;
+                        bot.y = Math.random() * MAP_SIZE;
+                        bot.radius = Math.random() * 25 + 15;
+                    }
+                }
+            });
+
+            // Camera Tracking
+            camera.x += (player.x - camera.x) * 0.1;
+            camera.y += (player.y - camera.y) * 0.1;
+            let targetZoom = Math.max(0.2, 100 / player.radius);
+            camera.zoom += (targetZoom - camera.zoom) * 0.05;
+
+            let currentScore = Math.floor(player.radius * player.radius * 0.1);
+            document.getElementById('score').innerText = currentScore;
+            updateLeaderboard(currentScore);
+        }
+
+        function updateLeaderboard(playerScore) {
+            let list = [{ name: player.name, score: playerScore }];
+            bots.forEach(b => list.push({ name: b.name, score: Math.floor(b.radius * b.radius * 0.1) }));
+            list.sort((a, b) => b.score - a.score);
+
+            let html = "";
+            for (let i = 0; i < Math.min(5, list.length); i++) {
+                let style = list[i].name === player.name ? "color: #3498db; font-weight: bold;" : "";
+                html += `<div class="lb-item"><span style="${style}">${i+1}. ${list[i].name}</span><span>${list[i].score}</span></div>`;
+            }
+            document.getElementById('lb-list').innerHTML = html;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!gameStarted) return;
+
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(camera.zoom, camera.zoom);
+            ctx.translate(-camera.x, -camera.y);
+
+            // Gridlines
+            ctx.strokeStyle = '#e6e6e6';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < MAP_SIZE; x += 50) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, MAP_SIZE); ctx.stroke();
+            }
+            for (let y = 0; y < MAP_SIZE; y += 50) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_SIZE, y); ctx.stroke();
+            }
+
+            // Draw Food
+            foods.forEach(f => {
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = f.color;
+                ctx.fill();
+                ctx.closePath();
+            });
+
+            // Draw AI Bots
+            bots.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                ctx.fillStyle = b.color;
+                ctx.lineWidth = Math.max(4, b.radius * 0.08);
+                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                ctx.fill();
+                ctx.stroke();
+                ctx.closePath();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${Math.max(14, b.radius * 0.4)}px Ubuntu, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(b.name, b.x, b.y);
+            });
+
+            // Draw Player Cell
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = player.color;
+            ctx.lineWidth = Math.max(4, player.radius * 0.08);
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.fill();
+            ctx.stroke();
+            ctx.closePath();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${Math.max(14, player.radius * 0.4)}px Ubuntu, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(player.name, player.x, player.y);
+
+            ctx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
