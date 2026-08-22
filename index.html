@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Agar.io with Learning AI</title>
+    <title>Agar.io with Strict Size-Based Combat</title>
     <style>
         body {
             margin: 0;
@@ -90,7 +90,7 @@
     <div id="deathScreen" class="overlay">
         <div class="panel">
             <h1>You Died!</h1>
-            <p>A learning bot outsmarted and consumed you.</p>
+            <p>A larger bot consumed you.</p>
             <button class="btn" id="respawnButton">Play Again</button>
         </div>
     </div>
@@ -158,7 +158,7 @@
             mouse.y = e.clientY;
         });
 
-        // Generate Map Elements
+        // Food Pellets
         let foods = [];
         for (let i = 0; i < 600; i++) {
             foods.push({
@@ -170,9 +170,9 @@
 
         // Learning AI Bots Setup
         let bots = [];
-        const botNames = ["AlphaBot", "DeepBlob", "NeuralGoo", "Q-Eater", "Synapse", "Cognito", "ApexCell"];
+        const botNames = ["AlphaBot", "DeepBlob", "NeuralGoo", "Q-Eater", "Synapse", "Cognito", "ApexCell", "PredatorX"];
         
-        for (let i = 0; i < 25; i++) {
+        for (let i = 0; i < 30; i++) {
             bots.push({
                 x: Math.random() * MAP_SIZE,
                 y: Math.random() * MAP_SIZE,
@@ -181,11 +181,10 @@
                 name: botNames[i % botNames.length],
                 vx: 0,
                 vy: 0,
-                // Reinforcement Learning Weights (The AI's brain values)
                 weights: {
-                    foodPreference: Math.random() * 2 - 1,   // How much it values eating small food
-                    hunterInstinct: Math.random() * 2 - 1,   // How aggressively it chases smaller cells
-                    survivalInstinct: Math.random() * 2 + 1  // How strongly it flees bigger threats
+                    foodPreference: Math.random() * 2 - 1,
+                    hunterInstinct: Math.random() * 2,
+                    survivalInstinct: Math.random() * 2 + 1
                 },
                 lastRadius: 22
             });
@@ -216,22 +215,18 @@
             }
 
             // Update & Learn AI Bots
-            bots.forEach(bot => {
-                // Reward Check: Did the bot grow since last cycle?
+            bots.forEach((bot, index) => {
                 let reward = bot.radius - bot.lastRadius;
                 bot.lastRadius = bot.radius;
 
-                // Reinforcement Learning Adjustment (If growing, reinforce current behavioral weights slightly)
                 if (reward > 0) {
                     bot.weights.foodPreference += 0.01;
-                    bot.weights.survivalInstinct += 0.005;
+                    bot.weights.hunterInstinct += 0.01;
                 } else {
-                    // If shrinking or stagnant, mutate weights to try a different strategy
                     bot.weights.foodPreference += (Math.random() - 0.5) * 0.05;
                     bot.weights.hunterInstinct += (Math.random() - 0.5) * 0.05;
                 }
 
-                // AI Decision Making (Scanning local surroundings)
                 let targetMoveX = 0, targetMoveY = 0;
                 let nearestThreatDist = 9999, threatX = 0, threatY = 0;
                 let nearestFoodDist = 9999, foodX = 0, foodY = 0;
@@ -253,32 +248,26 @@
                     let d = Math.hypot(bot.x - ent.x, bot.y - ent.y);
                     if (d < 500) {
                         if (ent.radius > bot.radius * 1.1 && d < nearestThreatDist) {
-                            // Bigger entity = Threat! Run away!
                             nearestThreatDist = d;
                             threatX = ent.x; threatY = ent.y;
                         } else if (bot.radius > ent.radius * 1.1 && d < nearestTargetDist) {
-                            // Smaller entity = Prey! Hunt!
                             nearestTargetDist = d;
                             targetX = ent.x; targetY = ent.y;
                         }
                     }
                 });
 
-                // Apply Learned Weights to Navigation Vector
+                // Navigation Logic based on weights
                 if (nearestThreatDist < 300 * bot.weights.survivalInstinct) {
-                    // Flee from threat
                     targetMoveX = bot.x - threatX;
                     targetMoveY = bot.y - threatY;
-                } else if (nearestTargetDist < nearestFoodDist * 1.5 && bot.weights.hunterInstinct > 0) {
-                    // Chase weaker prey
+                } else if (nearestTargetDist < nearestFoodDist * 1.5 && bot.weights.hunterInstinct > 0.5) {
                     targetMoveX = targetX - bot.x;
                     targetMoveY = targetY - bot.y;
                 } else if (nearestFoodDist < 400) {
-                    // Collect food pellet using food preference weight
                     targetMoveX = (foodX - bot.x) * bot.weights.foodPreference;
                     targetMoveY = (foodY - bot.y) * bot.weights.foodPreference;
                 } else {
-                    // Random exploration drift
                     targetMoveX = (Math.random() - 0.5) * 200;
                     targetMoveY = (Math.random() - 0.5) * 200;
                 }
@@ -288,7 +277,6 @@
                 bot.x += (targetMoveX / moveDist) * botSpeed;
                 bot.y += (targetMoveY / moveDist) * botSpeed;
 
-                // Boundary clamping
                 bot.x = Math.max(bot.radius, Math.min(MAP_SIZE - bot.radius, bot.x));
                 bot.y = Math.max(bot.radius, Math.min(MAP_SIZE - bot.radius, bot.y));
 
@@ -302,16 +290,37 @@
                     }
                 }
 
-                // Bot vs Player Collisions
+                // Bot vs Bot Collisions (Strict Size Check: must be > 10% larger and touch)
+                for (let j = index + 1; j < bots.length; j++) {
+                    let otherBot = bots[j];
+                    let bDist = Math.hypot(bot.x - otherBot.x, bot.y - otherBot.y);
+                    if (bDist < Math.max(bot.radius, otherBot.radius)) {
+                        if (bot.radius > otherBot.radius * 1.1) {
+                            bot.radius += otherBot.radius * 0.15;
+                            otherBot.x = Math.random() * MAP_SIZE;
+                            otherBot.y = Math.random() * MAP_SIZE;
+                            otherBot.radius = Math.random() * 25 + 15;
+                        } else if (otherBot.radius > bot.radius * 1.1) {
+                            otherBot.radius += bot.radius * 0.15;
+                            bot.x = Math.random() * MAP_SIZE;
+                            bot.y = Math.random() * MAP_SIZE;
+                            bot.radius = Math.random() * 25 + 15;
+                        }
+                    }
+                }
+
+                // Bot vs Player Collisions (Strict Size Check)
                 let pDist = Math.hypot(bot.x - player.x, bot.y - player.y);
-                if (pDist < bot.radius + player.radius) {
+                if (pDist < Math.max(bot.radius, player.radius)) {
                     if (bot.radius > player.radius * 1.1) {
+                        // Bot eats player
                         bot.radius += player.radius * 0.15;
                         gameStarted = false;
                         document.getElementById('hud').style.display = 'none';
                         document.getElementById('leaderboard').style.display = 'none';
                         document.getElementById('deathScreen').style.display = 'flex';
                     } else if (player.radius > bot.radius * 1.1) {
+                        // Player eats bot
                         player.radius += bot.radius * 0.15;
                         bot.x = Math.random() * MAP_SIZE;
                         bot.y = Math.random() * MAP_SIZE;
