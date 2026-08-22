@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mini Agar.io Clone</title>
+    <style>
+        body {
+            margin: 0;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background: #222;
+        }
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 15px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="hud">Mass: <span id="mass">10</span></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        const MAP_SIZE = 2000;
+
+        let player = {
+            x: MAP_SIZE / 2,
+            y: MAP_SIZE / 2,
+            radius: 15,
+            color: '#ff5722',
+            speed: 4
+        };
+
+        let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        // Generate food pellets
+        let foods = [];
+        for (let i = 0; i < 300; i++) {
+            foods.push({
+                x: Math.random() * MAP_SIZE,
+                y: Math.random() * MAP_SIZE,
+                radius: 4,
+                color: `hsl(${Math.random() * 360}, 80%, 60%)`
+            });
+        }
+
+        // Generate AI cells (Viruses/Bots)
+        let bots = [];
+        for (let i = 0; i < 30; i++) {
+            bots.push({
+                x: Math.random() * MAP_SIZE,
+                y: Math.random() * MAP_SIZE,
+                radius: Math.random() * 15 + 10,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2
+            });
+        }
+
+        function update() {
+            // Move player towards mouse
+            let dx = mouse.x - canvas.width / 2;
+            let dy = mouse.y - canvas.height / 2;
+            let dist = Math.hypot(dx, dy);
+
+            if (dist > 1) {
+                player.x += (dx / dist) * player.speed;
+                player.y += (dy / dist) * player.speed;
+            }
+
+            // Constrain player to map bounds
+            player.x = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.y));
+
+            // Adjust speed based on size (larger = slower)
+            player.speed = Math.max(1.5, 4 - (player.radius / 30));
+
+            // Check food collisions
+            for (let i = foods.length - 1; i >= 0; i--) {
+                let f = foods[i];
+                let d = Math.hypot(player.x - f.x, player.y - f.y);
+                if (d < player.radius) {
+                    player.radius += 0.1; // Grow slightly
+                    foods.splice(i, 1);
+                    // Respawn food elsewhere
+                    foods.push({
+                        x: Math.random() * MAP_SIZE,
+                        y: Math.random() * MAP_SIZE,
+                        radius: 4,
+                        color: `hsl(${Math.random() * 360}, 80%, 60%)`
+                    });
+                }
+            }
+
+            // Update bots
+            bots.forEach(bot => {
+                bot.x += bot.vx;
+                bot.y += bot.vy;
+
+                if (bot.x < 0 || bot.x > MAP_SIZE) bot.vx *= -1;
+                if (bot.y < 0 || bot.y > MAP_SIZE) bot.vy *= -1;
+
+                // Check bot-player collisions
+                let d = Math.hypot(player.x - bot.x, player.y - bot.y);
+                if (d < player.radius + bot.radius) {
+                    if (player.radius > bot.radius * 1.1) {
+                        // Player eats bot
+                        player.radius += bot.radius * 0.2;
+                        bot.x = Math.random() * MAP_SIZE;
+                        bot.y = Math.random() * MAP_SIZE;
+                        bot.radius = Math.random() * 15 + 10;
+                    } else if (bot.radius > player.radius * 1.1) {
+                        // Bot eats player (reset game)
+                        alert("You got eaten! Click OK to restart.");
+                        player.radius = 15;
+                        player.x = MAP_SIZE / 2;
+                        player.y = MAP_SIZE / 2;
+                    }
+                }
+            });
+
+            document.getElementById('mass').innerText = Math.floor(player.radius);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            // Camera follow player
+            let camX = canvas.width / 2 - player.x;
+            let camY = canvas.height / 2 - player.y;
+            ctx.translate(camX, camY);
+
+            // Draw map background grid
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < MAP_SIZE; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, MAP_SIZE);
+                ctx.stroke();
+            }
+            for (let y = 0; y < MAP_SIZE; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(MAP_SIZE, y);
+                ctx.stroke();
+            }
+
+            // Draw food
+            foods.forEach(f => {
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+                ctx.fillStyle = f.color;
+                ctx.fill();
+                ctx.closePath();
+            });
+
+            // Draw bots
+            bots.forEach(bot => {
+                ctx.beginPath();
+                ctx.arc(bot.x, bot.y, bot.radius, 0, Math.PI * 2);
+                ctx.fillStyle = bot.color;
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#000';
+                ctx.stroke();
+                ctx.closePath();
+            });
+
+            // Draw player cell
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = player.color;
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+            ctx.closePath();
+
+            ctx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
