@@ -29,6 +29,7 @@
             border: 1px solid rgba(255,255,255,0.15);
             box-shadow: 0 8px 25px rgba(0,0,0,0.7);
             backdrop-filter: blur(5px);
+            display: none;
         }
         #leaderboard {
             position: absolute;
@@ -43,6 +44,7 @@
             border: 1px solid rgba(255,255,255,0.15);
             box-shadow: 0 8px 25px rgba(0,0,0,0.7);
             backdrop-filter: blur(5px);
+            display: none;
         }
         #leaderboard h3 {
             margin: 0 0 10px 0;
@@ -68,10 +70,80 @@
             color: #aaa;
             border: 1px solid rgba(255,255,255,0.1);
             pointer-events: none;
+            display: none;
+        }
+        /* Menu overlay styling */
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(13, 13, 13, 0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        #menu-box {
+            background: rgba(25, 25, 25, 0.9);
+            padding: 40px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+            width: 320px;
+        }
+        #menu-box h1 {
+            margin-top: 0;
+            color: #ff5722;
+            font-size: 28px;
+            letter-spacing: 2px;
+        }
+        #usernameInput {
+            width: 100%;
+            padding: 12px;
+            margin: 20px 0;
+            background: #111;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        #usernameInput:focus {
+            outline: none;
+            border-color: #ff5722;
+        }
+        #playBtn {
+            width: 100%;
+            padding: 12px;
+            background: #ff5722;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #playBtn:hover {
+            background: #e64a19;
         }
     </style>
 </head>
 <body>
+    <!-- Start Screen Menu -->
+    <div id="menu">
+        <div id="menu-box">
+            <h1>AGAR.IO ELITE</h1>
+            <input type="text" id="usernameInput" placeholder="Enter your nickname" maxlength="15" value="Player">
+            <button id="playBtn">Play Game</button>
+        </div>
+    </div>
+
     <div id="hud">Mass: <span id="mass">20</span></div>
     <div id="leaderboard">
         <h3>TOP CELLS</h3>
@@ -99,12 +171,24 @@
             y: MAP_SIZE / 2,
             radius: 22,
             color: '#ff5722',
-            speed: 2.2, // Slower, heavier movement
+            speed: 2.2,
             name: "You"
         };
 
         let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
-        let camera = { x: player.x, y: player.y, zoom: 1 };
+        let camera = { x: player.x, y: player.y, zoom: 0.5 }; // Much more zoomed-out perspective by default
+        let gameStarted = false;
+
+        document.getElementById('playBtn').addEventListener('click', () => {
+            let customName = document.getElementById('usernameInput').value.trim();
+            if (customName) player.name = customName;
+
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('leaderboard').style.display = 'block';
+            document.getElementById('instructions').style.display = 'block';
+            gameStarted = true;
+        });
 
         window.addEventListener('mousemove', (e) => {
             mouse.x = e.clientX;
@@ -113,13 +197,13 @@
 
         let ejectedMass = [];
 
-        // Controls: Space to Split, W to Eject Mass
         window.addEventListener('keydown', (e) => {
+            if (!gameStarted) return;
             if (e.code === 'Space' && player.radius > 35) {
-                player.radius -= 12; // Split penalty simulation
+                player.radius -= 12;
             }
             if (e.code === 'KeyW' && player.radius > 25) {
-                player.radius -= 3; // Eject mass
+                player.radius -= 3;
                 let dx = mouse.x - canvas.width / 2;
                 let dy = mouse.y - canvas.height / 2;
                 let dist = Math.hypot(dx, dy) || 1;
@@ -134,7 +218,6 @@
             }
         });
 
-        // Generate glowing food pellets
         let foods = [];
         for (let i = 0; i < 600; i++) {
             foods.push({
@@ -145,7 +228,6 @@
             });
         }
 
-        // Generate Viruses (Spike hazards)
         let viruses = [];
         for (let i = 0; i < 18; i++) {
             viruses.push({
@@ -156,7 +238,6 @@
             });
         }
 
-        // Generate AI Bot Cells
         let bots = [];
         const botNames = ["Alpha", "Blobber", "Venom", "Titan", "Cosmo", "Goliath", "Zeus", "Vortex", "Shadow", "Apex", "Juggernaut", "Pulse"];
         for (let i = 0; i < 40; i++) {
@@ -172,7 +253,8 @@
         }
 
         function update() {
-            // Smooth directional movement towards mouse
+            if (!gameStarted) return;
+
             let dx = mouse.x - canvas.width / 2;
             let dy = mouse.y - canvas.height / 2;
             let dist = Math.hypot(dx, dy);
@@ -182,20 +264,17 @@
                 player.y += (dy / dist) * player.speed;
             }
 
-            // Constrain player to map bounds
             player.x = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.x));
             player.y = Math.max(player.radius, Math.min(MAP_SIZE - player.radius, player.y));
 
-            // Slower, heavy scaling speed based on mass
             player.speed = Math.max(1.1, 3.2 - (player.radius / 50));
 
-            // Smooth camera zoom based on player size
-            let targetZoom = Math.max(0.35, 140 / player.radius);
+            // Wider zoomed-out target perspective calculation
+            let targetZoom = Math.max(0.25, 90 / player.radius);
             camera.zoom += (targetZoom - camera.zoom) * 0.06;
             camera.x += (player.x - camera.x) * 0.1;
             camera.y += (player.y - camera.y) * 0.1;
 
-            // Update ejected mass particles
             for (let i = ejectedMass.length - 1; i >= 0; i--) {
                 let em = ejectedMass[i];
                 em.x += em.vx;
@@ -203,14 +282,12 @@
                 em.vx *= 0.92;
                 em.vy *= 0.92;
 
-                // Player eating own ejected mass back
                 if (Math.hypot(player.x - em.x, player.y - em.y) < player.radius) {
                     player.radius += 0.4;
                     ejectedMass.splice(i, 1);
                 }
             }
 
-            // Food collision checks
             for (let i = foods.length - 1; i >= 0; i--) {
                 let f = foods[i];
                 if (Math.hypot(player.x - f.x, player.y - f.y) < player.radius) {
@@ -225,7 +302,6 @@
                 }
             }
 
-            // Bot movement and collision logic
             bots.forEach(bot => {
                 bot.x += bot.vx;
                 bot.y += bot.vy;
@@ -238,7 +314,6 @@
                     bot.vy = (Math.random() - 0.5) * 2;
                 }
 
-                // Player vs Bot
                 let d = Math.hypot(player.x - bot.x, player.y - bot.y);
                 if (d < player.radius + bot.radius) {
                     if (player.radius > bot.radius * 1.1) {
@@ -255,7 +330,6 @@
                 }
             });
 
-            // Virus spike hazard checks
             viruses.forEach(v => {
                 if (Math.hypot(player.x - v.x, player.y - v.y) < player.radius + v.radius) {
                     if (player.radius > v.radius) {
@@ -266,20 +340,19 @@
                 }
             });
 
-            // Update Score & Leaderboard UI
             let currentMass = Math.floor(player.radius * player.radius * 0.1);
             document.getElementById('mass').innerText = currentMass;
             updateLeaderboard(currentMass);
         }
 
         function updateLeaderboard(playerMass) {
-            let allEntities = [{ name: "You", mass: playerMass }];
+            let allEntities = [{ name: player.name, mass: playerMass }];
             bots.forEach(b => allEntities.push({ name: b.name, mass: Math.floor(b.radius * b.radius * 0.1) }));
             allEntities.sort((a, b) => b.mass - a.mass);
 
             let html = "";
             for (let i = 0; i < Math.min(5, allEntities.length); i++) {
-                let colorStyle = allEntities[i].name === "You" ? "color: #ff5722; font-weight: bold;" : "";
+                let colorStyle = allEntities[i].name === player.name ? "color: #ff5722; font-weight: bold;" : "";
                 html += `<div class="lb-item"><span style="${colorStyle}">${i+1}. ${allEntities[i].name}</span><span>${allEntities[i].mass}</span></div>`;
             }
             document.getElementById('lb-list').innerHTML = html;
@@ -287,13 +360,13 @@
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!gameStarted) return;
 
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.scale(camera.zoom, camera.zoom);
             ctx.translate(-camera.x, -camera.y);
 
-            // Clean background grid styling
             ctx.strokeStyle = '#1b1b1b';
             ctx.lineWidth = 1.5;
             for (let x = 0; x < MAP_SIZE; x += 90) {
@@ -303,7 +376,6 @@
                 ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(MAP_SIZE, y); ctx.stroke();
             }
 
-            // Draw Foods
             foods.forEach(f => {
                 ctx.beginPath();
                 ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
@@ -311,11 +383,10 @@
                 ctx.shadowBlur = 6;
                 ctx.shadowColor = f.color;
                 ctx.fill();
-                ctx.shadowBlur = 0; // Reset shadow
+                ctx.shadowBlur = 0;
                 ctx.closePath();
             });
 
-            // Draw Ejected Mass Pellets
             ejectedMass.forEach(em => {
                 ctx.beginPath();
                 ctx.arc(em.x, em.y, em.radius, 0, Math.PI * 2);
@@ -324,7 +395,6 @@
                 ctx.closePath();
             });
 
-            // Draw Viruses (Green Spike hazards)
             viruses.forEach(v => {
                 ctx.beginPath();
                 ctx.arc(v.x, v.y, v.radius, 0, Math.PI * 2);
@@ -336,7 +406,6 @@
                 ctx.closePath();
             });
 
-            // Draw Bot Cells
             bots.forEach(bot => {
                 ctx.beginPath();
                 ctx.arc(bot.x, bot.y, bot.radius, 0, Math.PI * 2);
@@ -356,7 +425,6 @@
                 ctx.fillText(bot.name, bot.x, bot.y + 4);
             });
 
-            // Draw Player Cell
             ctx.beginPath();
             ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
             ctx.fillStyle = player.color;
