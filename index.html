@@ -1,15 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" class=""><head><script>window.livecodes = window.livecodes || {};</script><title>My Game</title><meta name="title" content="My Game"><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="stylesheet" href="./style.css"><script src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js" async=""></script><script type="importmap">{
-  "imports": {}
-}</script></head><body>
-
-
+<html lang="en">
+<head>
     <meta charset="UTF-8">
-    <title>3D Endless Runner - AdSense Integrated</title>
+    <title>3D Endless Runner</title>
     
     <!-- Google AdSense Script -->
-    <script async="" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2360811151820249" crossorigin="anonymous"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2360811151820249"
+     crossorigin="anonymous"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
@@ -31,11 +28,12 @@
         button { margin-top: 20px; padding: 15px 35px; font-size: 22px; cursor: pointer; border: none; background: linear-gradient(135deg, #00b894, #00cec9); color: white; border-radius: 12px; font-weight: bold; font-family: 'Poppins', sans-serif; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 5px 15px rgba(0, 184, 148, 0.4); }
         button:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0, 184, 148, 0.6); }
         
-        #controls-info { position: absolute; bottom: 25px; width: 100%; text-align: center; color: white; font-size: 16px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); pointer-events: none; opacity: 0.8; }
+        #controls-info { position: absolute; bottom: 25px; width: 100%; text-align: center; color: white; font-size: 16px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); z-index: 10; opacity: 0.9; }
+        #controls-info a { color: white; text-decoration: underline; margin-left: 10px; }
         kbd { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 6px; border-bottom: 2px solid rgba(255,255,255,0.5); font-family: sans-serif; }
     </style>
-
-
+</head>
+<body>
     <div id="ui">
         <div class="stat">SCORE <span id="score">0</span></div>
         <div class="stat" id="coin-stat">COINS <span id="coins">0</span></div>
@@ -43,9 +41,15 @@
     
     <!-- Your AdSense Ad Unit -->
     <div id="ad-container">
-        <script async="" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2360811151820249" crossorigin="anonymous"></script>
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2360811151820249"
+             crossorigin="anonymous"></script>
         <!-- My Game Ads -->
-        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-2360811151820249" data-ad-slot="7717368135" data-ad-format="auto" data-full-width-responsive="true"></ins>
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-2360811151820249"
+             data-ad-slot="7717368135"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
         <script>
              (adsbygoogle = window.adsbygoogle || []).push({});
         </script>
@@ -53,7 +57,10 @@
 
     <div id="powerup-status">🧲 MAGNET ACTIVE: <span id="timer">6.0</span>s</div>
     
-    <div id="controls-info">Move: <kbd>A</kbd> <kbd>D</kbd> &nbsp;|&nbsp; Jump: <kbd>W</kbd> &nbsp;|&nbsp; Slide Burst: <kbd>S</kbd></div>
+    <div id="controls-info">
+        Move: <kbd>A</kbd> <kbd>D</kbd> &nbsp;|&nbsp; Jump: <kbd>W</kbd> &nbsp;|&nbsp; Slide Burst: <kbd>S</kbd>
+        <a href="privacy.html">Privacy Policy</a>
+    </div>
     
     <div id="gameOver">
         <h1>Crashed!</h1>
@@ -460,7 +467,6 @@
                 }
             }
 
-hats = frameCount % 15;
             if (frameCount % 15 === 0) {
                 score += 2;
                 document.getElementById('score').innerText = score;
@@ -482,10 +488,5 @@ hats = frameCount % 15;
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
     </script>
-
-<script src="./script.js"></script>
-<div id="controls-info">
-    Move: <kbd>A</kbd> <kbd>D</kbd> &nbsp;|&nbsp; Jump: <kbd>W</kbd> &nbsp;|&nbsp; Slide Burst: <kbd>S</kbd> 
-    &nbsp;|&nbsp; <a href="privacy.html" style="color: white; text-decoration: underline;">Privacy Policy</a>
-</div>
-</body></html>
+</body>
+</html>
