@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>3D Endless Runner</title>
+    <title>3D Endless Runner - AdSense Integrated</title>
     
     <!-- Google AdSense Script -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2360811151820249"
@@ -17,7 +17,11 @@
         #ui { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 10; display: flex; gap: 15px;}
         .stat { background: rgba(255,255,255,0.15); padding: 10px 25px; border-radius: 12px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
         #coin-stat { color: #ffeaa7; }
-        #powerup-status { position: absolute; top: 80px; left: 20px; color: #a29bfe; font-size: 20px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); display: none; background: rgba(0,0,0,0.4); padding: 5px 15px; border-radius: 8px; }
+        
+        #powerups { position: absolute; top: 80px; left: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+        .powerup-status { color: #fff; font-size: 18px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); display: none; background: rgba(0,0,0,0.5); padding: 6px 15px; border-radius: 8px; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.2); }
+        #magnet-status { color: #a29bfe; }
+        #shield-status { color: #0984e3; }
         
         /* Ad Container Style */
         #ad-container { position: absolute; top: 20px; right: 20px; z-index: 10; width: 250px; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 12px; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.2); }
@@ -39,6 +43,11 @@
         <div class="stat" id="coin-stat">COINS <span id="coins">0</span></div>
     </div>
     
+    <div id="powerups">
+        <div id="magnet-status" class="powerup-status">🧲 MAGNET: <span id="magnet-timer">6.0</span>s</div>
+        <div id="shield-status" class="powerup-status">🛡️ SHIELD: <span id="shield-timer">5.0</span>s</div>
+    </div>
+    
     <!-- Your AdSense Ad Unit -->
     <div id="ad-container">
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2360811151820249"
@@ -54,8 +63,6 @@
              (adsbygoogle = window.adsbygoogle || []).push({});
         </script>
     </div>
-
-    <div id="powerup-status">🧲 MAGNET ACTIVE: <span id="timer">6.0</span>s</div>
     
     <div id="controls-info">
         Move: <kbd>A</kbd> <kbd>D</kbd> &nbsp;|&nbsp; Jump: <kbd>W</kbd> &nbsp;|&nbsp; Slide Burst: <kbd>S</kbd>
@@ -203,12 +210,19 @@
         rightShoe.position.set(0, -0.8, 0.05); rightShoe.castShadow = true;
         rightLegPivot.add(rightLeg, rightShoe);
 
-        const magnetAuraGeo = new THREE.SphereGeometry(1.5, 16, 16);
+        const magnetAuraGeo = new THREE.SphereGeometry(1.6, 16, 16);
         const magnetAuraMat = new THREE.MeshBasicMaterial({ color: 0xa29bfe, transparent: true, opacity: 0.25, wireframe: true });
         const magnetAura = new THREE.Mesh(magnetAuraGeo, magnetAuraMat);
         magnetAura.position.y = 1.0;
         magnetAura.visible = false;
         player.add(magnetAura);
+
+        const shieldAuraGeo = new THREE.SphereGeometry(1.4, 16, 16);
+        const shieldAuraMat = new THREE.MeshBasicMaterial({ color: 0x0984e3, transparent: true, opacity: 0.35, wireframe: true });
+        const shieldAura = new THREE.Mesh(shieldAuraGeo, shieldAuraMat);
+        shieldAura.position.y = 1.0;
+        shieldAura.visible = false;
+        player.add(shieldAura);
 
         player.add(head, torso, leftArmPivot, rightArmPivot, leftLegPivot, rightLegPivot);
         scene.add(player);
@@ -226,12 +240,17 @@
         
         let hasMagnet = false;
         let magnetTimer = 0;
+        let hasShield = false;
+        let shieldTimer = 0;
 
         const coinGeo = new THREE.TorusGeometry(0.4, 0.12, 16, 32);
         const coinMat = new THREE.MeshStandardMaterial({ color: 0xf1c40f, metalness: 1.0, roughness: 0.1, emissive: 0x665500 });
         
-        const powerupGeo = new THREE.SphereGeometry(0.5, 16, 16);
-        const powerupMat = new THREE.MeshStandardMaterial({ color: 0xa29bfe, emissive: 0x6c5ce7, roughness: 0.2 });
+        const magnetPowerGeo = new THREE.SphereGeometry(0.5, 16, 16);
+        const magnetPowerMat = new THREE.MeshStandardMaterial({ color: 0xa29bfe, emissive: 0x6c5ce7, roughness: 0.2 });
+
+        const shieldPowerGeo = new THREE.OctahedronGeometry(0.55);
+        const shieldPowerMat = new THREE.MeshStandardMaterial({ color: 0x0984e3, emissive: 0x00cec9, roughness: 0.2 });
 
         const obsLowGeo = new THREE.BoxGeometry(2, 1.2, 1);
         const obsLowMat = new THREE.MeshStandardMaterial({ color: 0xd63031, roughness: 0.5 });
@@ -314,11 +333,17 @@
                     coin.userData = { type: 'coin' };
                     scene.add(coin); objects.push(coin);
                 }
-            } else if (rand < 0.45) {
-                const powerup = new THREE.Mesh(powerupGeo, powerupMat);
+            } else if (rand < 0.42) {
+                const powerup = new THREE.Mesh(magnetPowerGeo, magnetPowerMat);
                 powerup.position.set(lanes[lane], 1.0, spawnZ);
                 powerup.castShadow = true;
                 powerup.userData = { type: 'magnet' };
+                scene.add(powerup); objects.push(powerup);
+            } else if (rand < 0.48) {
+                const powerup = new THREE.Mesh(shieldPowerGeo, shieldPowerMat);
+                powerup.position.set(lanes[lane], 1.0, spawnZ);
+                powerup.castShadow = true;
+                powerup.userData = { type: 'shield' };
                 scene.add(powerup); objects.push(powerup);
             } else {
                 let obs;
@@ -342,9 +367,14 @@
             score = 0; coinCount = 0; baseSpeed = 0.28; speed = 0.28; currentLane = 1; targetX = 0;
             player.position.set(0, 0, 0); player.rotation.x = 0;
             isJumping = false; isSliding = false;
+            
             hasMagnet = false; magnetTimer = 0;
             magnetAura.visible = false;
-            document.getElementById('powerup-status').style.display = 'none';
+            document.getElementById('magnet-status').style.display = 'none';
+
+            hasShield = false; shieldTimer = 0;
+            shieldAura.visible = false;
+            document.getElementById('shield-status').style.display = 'none';
             
             document.getElementById('gameOver').style.display = 'none';
             document.getElementById('score').innerText = score;
@@ -365,11 +395,21 @@
 
             if (hasMagnet) {
                 magnetTimer -= 1 / 60;
-                document.getElementById('timer').innerText = Math.max(0, magnetTimer).toFixed(1);
+                document.getElementById('magnet-timer').innerText = Math.max(0, magnetTimer).toFixed(1);
                 if (magnetTimer <= 0) {
                     hasMagnet = false;
                     magnetAura.visible = false;
-                    document.getElementById('powerup-status').style.display = 'none';
+                    document.getElementById('magnet-status').style.display = 'none';
+                }
+            }
+
+            if (hasShield) {
+                shieldTimer -= 1 / 60;
+                document.getElementById('shield-timer').innerText = Math.max(0, shieldTimer).toFixed(1);
+                if (shieldTimer <= 0) {
+                    hasShield = false;
+                    shieldAura.visible = false;
+                    document.getElementById('shield-status').style.display = 'none';
                 }
             }
 
@@ -434,8 +474,9 @@
                         obj.position.y += (player.position.y + 1.0 - obj.position.y) * 0.15;
                         obj.position.z += (player.position.z - obj.position.z) * 0.15;
                     }
-                } else if (obj.userData.type === 'magnet') {
+                } else if (obj.userData.type === 'magnet' || obj.userData.type === 'shield') {
                     obj.rotation.y += 0.05;
+                    obj.rotation.x += 0.02;
                 }
 
                 itemBox.setFromObject(obj);
@@ -451,14 +492,31 @@
                         hasMagnet = true;
                         magnetTimer = 6.0;
                         magnetAura.visible = true;
-                        document.getElementById('powerup-status').style.display = 'block';
+                        document.getElementById('magnet-status').style.display = 'block';
+                        
+                        scene.remove(obj); objects.splice(i, 1);
+                        continue;
+                    } else if (obj.userData.type === 'shield') {
+                        hasShield = true;
+                        shieldTimer = 5.0;
+                        shieldAura.visible = true;
+                        document.getElementById('shield-status').style.display = 'block';
                         
                         scene.remove(obj); objects.splice(i, 1);
                         continue;
                     } else {
-                        gameActive = false;
-                        document.getElementById('finalScore').innerText = score;
-                        document.getElementById('gameOver').style.display = 'block';
+                        // Obstacle collision
+                        if (hasShield) {
+                            // Smash through obstacle if shielded!
+                            createExplosion(obj.position.x, obj.position.y, obj.position.z);
+                            scene.remove(obj); objects.splice(i, 1);
+                            score += 50; // Bonus points for smashing
+                            continue;
+                        } else {
+                            gameActive = false;
+                            document.getElementById('finalScore').innerText = score;
+                            document.getElementById('gameOver').style.display = 'block';
+                        }
                     }
                 }
 
